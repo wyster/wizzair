@@ -20,6 +20,8 @@ class WizzMultipassIntegration
     private const string AVAILABILITY_URL = '/en/w6/subscriptions/json/availability';
     private const string WALLETS_URL = '/en/w6/subscriptions';
 
+    public const string XSRF_TOKEN_COOKIE = 'XSRF-TOKEN';
+
     public function __construct(HttpClientInterface $httpClient)
     {
         $this->httpClient = $httpClient->withOptions([
@@ -60,6 +62,10 @@ class WizzMultipassIntegration
 
     public function getAvailability(string $url, string $origin, string $destination, string $departure, CookieJar $cookieJar): ResponseInterface
     {
+        if (null === $cookieJar->get(self::XSRF_TOKEN_COOKIE)) {
+            throw new \RuntimeException('xsrf token not found');
+        }
+
         return $this->httpClient->request(Request::METHOD_POST, $url, [
             'json' => [
                 'flightType' => 'OW',
@@ -72,7 +78,7 @@ class WizzMultipassIntegration
             'headers' => [
                 'Cookie' => WizzMultiPassUtil::prepareCookiesForRequestHeaders($cookieJar, self::AVAILABILITY_URL),
                 'Accept' => 'application/json',
-                'x-xsrf-token' => $cookieJar->get('XSRF-TOKEN')->getValue(),
+                'x-xsrf-token' => $cookieJar->get(self::XSRF_TOKEN_COOKIE)->getValue(),
             ],
         ]);
     }

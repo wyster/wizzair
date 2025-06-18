@@ -41,7 +41,11 @@ class WizzMultipassService
     {
         $cacheItem = $this->cache->getItem(self::AUTH_CACHE_KEY);
         if ($cacheItem->isHit()) {
-            return $cacheItem->get();
+            /** @var CookieJar $cookieJar */
+            $cookieJar = $cacheItem->get();
+            if (false === $cookieJar->get(WizzMultipassIntegration::XSRF_TOKEN_COOKIE)?->isExpired()) {
+                return $cookieJar;
+            }
         }
         $cookieJar = new CookieJar();
         $response = $this->wizzMultipass->login();
