@@ -46,6 +46,14 @@ class WizzMultipassService
         return $availability->toArray();
     }
 
+    public function getRoutes(): array
+    {
+        $cookieJar = $this->authenticate();
+        $wallet = $this->wizzMultipass->getWallets($cookieJar);
+
+        return WizzMultiPassUtil::parseFlights($wallet->getContent())['searchFlight']['options']['routes'];
+    }
+
     private function authenticate(): CookieJar
     {
         $cacheItem = $this->cache->getItem(self::AUTH_CACHE_KEY);
