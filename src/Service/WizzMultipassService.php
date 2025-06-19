@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Integration\WizzMultipassIntegration;
+use App\Service\Exception\RouteNotAvailableException;
 use App\Util\WizzMultiPassUtil;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\BrowserKit\CookieJar;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 class WizzMultipassService
@@ -34,6 +36,13 @@ class WizzMultipassService
         $urls = WizzMultiPassUtil::parseUrls($wallet->getContent());
         $availability = $this->wizzMultipass->getAvailability($urls['searchFlightJson'], $origin, $destination, $departure->format('Y-m-d'), $cookieJar);
 
+        if (Response::HTTP_BAD_REQUEST === $availability->getStatusCode()) {
+            $data = $availability->toArray(false);
+            if (($data['code'] ?? null) === 'error.availability') {
+                throw new RouteNotAvailableException();
+            }
+        }
+
         return $availability->toArray();
     }
 
@@ -44,7 +53,7 @@ class WizzMultipassService
             /** @var CookieJar $cookieJar */
             $cookieJar = $cacheItem->get();
             if (false === $cookieJar->get(WizzMultipassIntegration::XSRF_TOKEN_COOKIE)?->isExpired()) {
-                return $cookieJar;
+                return $cookieJar; // We should return the object only if it is not null and not expired.
             }
         }
         $cookieJar = new CookieJar();

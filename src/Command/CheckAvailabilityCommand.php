@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Service\Exception\RouteNotAvailableException;
 use App\Service\WizzMultipassService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -55,11 +56,19 @@ class CheckAvailabilityCommand extends Command
             return Command::FAILURE;
         }
 
-        $result = $this->wizzMultipass->getAvailability(
-            $origin,
-            $destination,
-            new \DateTimeImmutable($departure)
-        );
-        dd($result);
+        try {
+            $result = $this->wizzMultipass->getAvailability(
+                $origin,
+                $destination,
+                new \DateTimeImmutable($departure)
+            );
+            dump($result);
+        } catch (RouteNotAvailableException) {
+            $io->error('Route not available');
+
+            return Command::FAILURE;
+        }
+
+        return Command::SUCCESS;
     }
 }
