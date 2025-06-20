@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Util;
 
+use App\Integration\WizzMultipassIntegration;
 use Symfony\Component\BrowserKit\CookieJar;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -79,5 +80,10 @@ class WizzMultiPassUtil
         });
 
         return $result;
+    }
+
+    public static function getSessionUniqueId(CookieJar $cookieJar): ?string
+    {
+        return $cookieJar->get(WizzMultipassIntegration::XSRF_TOKEN_COOKIE)?->getValue() ?: null;
     }
 }

@@ -16,6 +16,7 @@ use Symfony\Contracts\Cache\TagAwareCacheInterface;
 class WizzMultipassService
 {
     private const string AUTH_CACHE_KEY = 'wizz_auth';
+    private const string WALLETS_CACHE_KEY = 'wizz_wallets';
 
     public function __construct(
         private readonly WizzMultipassIntegration $wizzMultipass,
@@ -31,9 +32,8 @@ class WizzMultipassService
     public function getAvailability(string $origin, string $destination, \DateTimeInterface $departure): array
     {
         $cookieJar = $this->authenticate();
-        $wallet = $this->wizzMultipass->getWallets($cookieJar);
-        WizzMultiPassUtil::updateFromResponse($cookieJar, $wallet);
-        $urls = WizzMultiPassUtil::parseUrls($wallet->getContent());
+        $wallets = $this->getWallets($cookieJar);
+        $urls = WizzMultiPassUtil::parseUrls($wallets);
         $availability = $this->wizzMultipass->getAvailability($urls['searchFlightJson'], $origin, $destination, $departure->format('Y-m-d'), $cookieJar);
 
         if (Response::HTTP_BAD_REQUEST === $availability->getStatusCode()) {
@@ -49,9 +49,9 @@ class WizzMultipassService
     public function getRoutes(): array
     {
         $cookieJar = $this->authenticate();
-        $wallet = $this->wizzMultipass->getWallets($cookieJar);
+        $wallets = $this->wizzMultipass->getWallets($cookieJar);
 
-        return WizzMultiPassUtil::parseFlights($wallet->getContent())['searchFlight']['options']['routes'];
+        return WizzMultiPassUtil::parseFlights($wallets->getContent())['searchFlight']['options']['routes'];
     }
 
     private function authenticate(): CookieJar
@@ -74,5 +74,32 @@ class WizzMultipassService
         $this->cache->save($cacheItem);
 
         return $cookieJar;
+    }
+
+    private function getWallets(CookieJar $cookieJar): string
+    {
+        if (null !== WizzMultiPassUtil::getSessionUniqueId($cookieJar)) {
+            $cacheItem = $this->cache->getItem(self::WALLETS_CACHE_KEY.WizzMultiPassUtil::getSessionUniqueId($cookieJar));
+            if ($cacheItem->isHit()) {
+                return $cacheItem->get();
+            }
+        }
+        $wallets = $this->wizzMultipass->getWallets($cookieJar);
+        WizzMultiPassUtil::updateFromResponse($cookieJar, $wallets);
+
+        if (null === WizzMultiPassUtil::getSessionUniqueId($cookieJar)) {
+            throw new \RuntimeException('Could not get session unique ID');
+        }
+
+        $cacheItem = $this->cache->getItem(self::WALLETS_CACHE_KEY.WizzMultiPassUtil::getSessionUniqueId($cookieJar));
+        $this->cache->save(
+            $this->cache->getItem(self::AUTH_CACHE_KEY)
+                ->set($cookieJar)
+        );
+
+        $cacheItem->set($wallets->getContent());
+        $this->cache->save($cacheItem); // @todo set expr time
+
+        return $wallets->getContent();
     }
 }
