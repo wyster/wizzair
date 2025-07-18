@@ -57,10 +57,12 @@ class CheckAvailabilityCommand extends Command
         }
 
         try {
+            $date = new \DateTimeImmutable($departure);
+            $io->writeln(sprintf('Date: %s', $date->format('Y-m-d')));
             $result = $this->wizzMultipass->getAvailability(
                 $origin,
                 $destination,
-                new \DateTimeImmutable($departure)
+                $date
             );
             dump($result);
         } catch (RouteNotAvailableException) {
