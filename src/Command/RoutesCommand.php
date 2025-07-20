@@ -7,6 +7,7 @@ namespace App\Command;
 use App\Service\WizzMultipassService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -31,16 +32,26 @@ class RoutesCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $result = $this->wizzMultipass->getRoutes();
-        foreach ($result as $route) {
+        $table = new Table($output);
+        $table->setHeaders(['Departure', 'Arrival']);
+
+        $routes = $this->wizzMultipass->getRoutes();
+        foreach ($routes as $route) {
             if ($input->getOption('origin')) {
-                if (in_array($route['departureStation']['id'], explode(',', $input->getOption('origin')), true)) {
-                    dump($route);
+                if (!in_array($route['departureStation']['id'], explode(',', $input->getOption('origin')), true)) {
+                    continue;
                 }
-            } else {
-                dump($route);
+            }
+
+            foreach ($route['arrivalStations'] as $arrival) {
+                $table->addRow([
+                    sprintf('%s (%s)', $route['departureStation']['name'], $route['departureStation']['id']),
+                    sprintf('%s (%s)', $arrival['name'], $arrival['id']),
+                ]);
             }
         }
+
+        $table->render();
 
         return Command::SUCCESS;
     }
