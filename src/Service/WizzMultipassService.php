@@ -12,6 +12,7 @@ use Symfony\Component\BrowserKit\CookieJar;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
+use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 
 class WizzMultipassService
 {
@@ -31,19 +32,23 @@ class WizzMultipassService
 
     public function getAvailability(string $origin, string $destination, \DateTimeInterface $departure): array
     {
-        $cookieJar = $this->authenticate();
-        $wallets = $this->getWallets($cookieJar);
-        $urls = WizzMultiPassUtil::parseUrls($wallets);
-        $availability = $this->wizzMultipass->getAvailability($urls['searchFlightJson'], $origin, $destination, $departure->format('Y-m-d'), $cookieJar);
+        try {
+            $cookieJar = $this->authenticate();
+            $wallets = $this->getWallets($cookieJar);
+            $urls = WizzMultiPassUtil::parseUrls($wallets);
+            $availability = $this->wizzMultipass->getAvailability($urls['searchFlightJson'], $origin, $destination, $departure->format('Y-m-d'), $cookieJar);
 
-        if (Response::HTTP_BAD_REQUEST === $availability->getStatusCode()) {
-            $data = $availability->toArray(false);
-            if (($data['code'] ?? null) === 'error.availability') {
-                throw new RouteNotAvailableException();
+            if (Response::HTTP_BAD_REQUEST === $availability->getStatusCode()) {
+                $data = $availability->toArray(false);
+                if (($data['code'] ?? null) === 'error.availability') {
+                    throw new RouteNotAvailableException();
+                }
             }
-        }
 
-        return $availability->toArray();
+            return $availability->toArray();
+        } catch (HttpExceptionInterface $e) {
+            throw $e;
+        }
     }
 
     public function getRoutes(): array

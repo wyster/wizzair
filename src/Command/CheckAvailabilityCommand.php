@@ -56,19 +56,22 @@ class CheckAvailabilityCommand extends Command
             return Command::FAILURE;
         }
 
-        try {
-            $date = new \DateTimeImmutable($departure);
-            $io->writeln(sprintf('Date: %s', $date->format('Y-m-d')));
-            $result = $this->wizzMultipass->getAvailability(
-                $origin,
-                $destination,
-                $date
-            );
-            dump($result);
-        } catch (RouteNotAvailableException) {
-            $io->error('Route not available');
+        $date = new \DateTimeImmutable($departure);
+        $io->writeln(sprintf('Date: %s', $date->format('Y-m-d')));
 
-            return Command::FAILURE;
+        $destinations = explode(',', $destination);
+        foreach ($destinations as $destination) {
+            $io->writeln(sprintf('Route %s -> %s', $origin, $destination));
+            try {
+                $result = $this->wizzMultipass->getAvailability(
+                    $origin,
+                    $destination,
+                    $date
+                );
+                dump($result);
+            } catch (RouteNotAvailableException) {
+                $io->error('Route is not available');
+            }
         }
 
         return Command::SUCCESS;
