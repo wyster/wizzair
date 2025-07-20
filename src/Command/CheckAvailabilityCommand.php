@@ -38,8 +38,8 @@ class CheckAvailabilityCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $originCode = (string) $input->getOption('origin');
-        if (!$originCode) {
+        $origin = (string) $input->getOption('origin');
+        if (!$origin) {
             $output->writeln('<error>Origin is required.</error>');
 
             return Command::FAILURE;
@@ -63,8 +63,10 @@ class CheckAvailabilityCommand extends Command
         $table = new Table($output);
         $table->setHeaders(['Departure', 'Arrival', 'Departure time', 'Arrival time']);
 
+        $origins = explode(',', $origin);
         $destinations = explode(',', $destination);
-        foreach ($destinations as $destinationCode) {
+        $routes = self::prepareRoutesList($origins, $destinations);
+        foreach ($routes as [$originCode, $destinationCode]) {
             try {
                 $result = $this->wizzMultipass->getAvailability(
                     $originCode,
@@ -85,11 +87,31 @@ class CheckAvailabilityCommand extends Command
                     $destinationCode,
                     'Route is not available',
                 ]);
+            } catch (\Throwable $e) {
+                $table->addRow([
+                    $originCode,
+                    $destinationCode,
+                    $e->getMessage(),
+                ]);
             }
         }
 
         $table->render();
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * @return array<array{string, string}>
+     */
+    private static function prepareRoutesList(array $origins, array $destinations): array
+    {
+        $results = [];
+        foreach ($origins as $originCode) {
+            foreach ($destinations as $destinationCode) {
+                $results[] = [$originCode, $destinationCode];
+            }
+        }
+        return $results;
     }
 }
