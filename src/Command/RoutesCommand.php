@@ -36,6 +36,7 @@ class RoutesCommand extends Command
         $table->setHeaders(['Departure', 'Arrival']);
 
         $routes = $this->wizzMultipass->getRoutes();
+        $output->writeln(sprintf('Total count: %s', count($routes)));
         foreach ($routes as $route) {
             if ($input->getOption('origin')) {
                 if (!in_array($route['departureStation']['id'], explode(',', $input->getOption('origin')), true)) {
