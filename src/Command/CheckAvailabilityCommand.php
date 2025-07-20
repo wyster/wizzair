@@ -112,6 +112,7 @@ class CheckAvailabilityCommand extends Command
                 $results[] = [$originCode, $destinationCode];
             }
         }
+
         return $results;
     }
 }

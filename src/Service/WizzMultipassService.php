@@ -18,6 +18,7 @@ class WizzMultipassService
 {
     private const string AUTH_CACHE_KEY = 'wizz_auth';
     private const string WALLETS_CACHE_KEY = 'wizz_wallets';
+    private const string ROUTES_CACHE_KEY = 'wizz_routes';
 
     public function __construct(
         private readonly WizzMultipassIntegration $wizzMultipass,
@@ -53,10 +54,21 @@ class WizzMultipassService
 
     public function getRoutes(): array
     {
+        $cacheItem = $this->cache->getItem(self::ROUTES_CACHE_KEY);
+        if ($cacheItem->isHit()) {
+            return $cacheItem->get();
+        }
+
         $cookieJar = $this->authenticate();
         $wallets = $this->wizzMultipass->getWallets($cookieJar);
 
-        return WizzMultiPassUtil::parseFlights($wallets->getContent())['searchFlight']['options']['routes'];
+        $routes = WizzMultiPassUtil::parseFlights($wallets->getContent())['searchFlight']['options']['routes'];
+
+        $cacheItem->set($routes);
+        $cacheItem->expiresAfter(new \DateInterval('P1D'));
+        $this->cache->save($cacheItem);
+
+        return $routes;
     }
 
     private function authenticate(): CookieJar
