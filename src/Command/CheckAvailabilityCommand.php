@@ -8,6 +8,8 @@ use App\Service\Exception\RouteNotAvailableException;
 use App\Service\WizzMultipassService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -37,8 +39,8 @@ class CheckAvailabilityCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $origin = (string) $input->getOption('origin');
-        if (!$origin) {
+        $originCode = (string) $input->getOption('origin');
+        if (!$originCode) {
             $output->writeln('<error>Origin is required.</error>');
 
             return Command::FAILURE;
@@ -49,30 +51,45 @@ class CheckAvailabilityCommand extends Command
 
             return Command::FAILURE;
         }
-        $departure = (string) $input->getOption('departure');
-        if (!$departure) {
+        $departureDate = (string) $input->getOption('departure');
+        if (!$departureDate) {
             $output->writeln('<error>Departure is required.</error>');
 
             return Command::FAILURE;
         }
 
-        $date = new \DateTimeImmutable($departure);
+        $date = new \DateTimeImmutable($departureDate);
         $io->writeln(sprintf('Date: %s', $date->format('Y-m-d')));
 
+        $table = new Table($output);
+        $table->setHeaders(['Departure', 'Arrival', 'Departure time', 'Arrival time']);
+
         $destinations = explode(',', $destination);
-        foreach ($destinations as $destination) {
-            $io->writeln(sprintf('Route %s -> %s', $origin, $destination));
+        foreach ($destinations as $destinationCode) {
             try {
                 $result = $this->wizzMultipass->getAvailability(
-                    $origin,
-                    $destination,
+                    $originCode,
+                    $destinationCode,
                     $date
                 );
-                dump($result);
+                foreach ($result['flightsOutbound'] as $item) {
+                    $table->addRow([
+                        $item['departureStationCode'],
+                        sprintf('%s (%s)', $item['arrivalStationText'], $item['arrivalStationCode']),
+                        $item['departure'],
+                        $item['arrival'],
+                    ]);
+                }
             } catch (RouteNotAvailableException) {
-                $io->error('Route is not available');
+                $table->addRow([
+                    $originCode,
+                    $destinationCode,
+                    'Route is not available'
+                ]);
             }
         }
+
+        $table->render();
 
         return Command::SUCCESS;
     }
